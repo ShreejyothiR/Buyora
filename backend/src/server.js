@@ -62,7 +62,10 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Endpoint not found.' });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Buyora Backend API running on port ${PORT}`);
-  console.log(`📡 Health check available at http://localhost:${PORT}/api/health`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`🚀 Buyora Backend API running on port ${PORT}`);
+  });
+}
+
+module.exports = app;
