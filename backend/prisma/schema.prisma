@@ -1,0 +1,236 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String          @id @default(uuid())
+  email        String          @unique
+  passwordHash String
+  name         String
+  avatar       String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  preferences  UserPreference?
+  savedProducts SavedProduct[]
+  priceAlerts  PriceAlert[]
+  chatSessions ChatSession[]
+  comparisons  Comparison[]
+  uploads      UploadedDocument[]
+}
+
+model UserPreference {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  priceWeight       Int      @default(25)
+  performanceWeight  Int      @default(25)
+  batteryWeight     Int      @default(15)
+  cameraWeight      Int      @default(10)
+  durabilityWeight  Int      @default(10)
+  portabilityWeight Int      @default(5)
+  gamingWeight      Int      @default(5)
+  longTermWeight    Int      @default(5)
+  updatedAt         DateTime @updatedAt
+}
+
+model Product {
+  id                     String                 @id @default(uuid())
+  name                   String
+  brand                  String
+  category               String
+  modelNumber            String?
+  sku                    String?
+  imageUrl               String?
+  currentPrice           Float
+  originalPrice          Float
+  currency               String                 @default("₹")
+  rating                 Float                  @default(4.0)
+  reviewCount            Int                    @default(0)
+  buyVerdict             String                 @default("BUY") // BUY, WAIT, AVOID
+  verdictReason          String?
+  decisionConfidence     Int                    @default(85)
+  listingCompletenessScore Int                  @default(75)
+  futureProofScore       Int                    @default(80)
+  regretRisk             String                 @default("LOW") // LOW, MEDIUM, HIGH
+  rawDescription         String?
+  isDuplicateOfId        String?
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+
+  specifications         ProductSpecification[]
+  listings               ProductListing[]
+  priceHistory           PriceHistory[]
+  reviews                Review[]
+  reviewAnalysis         ReviewAnalysis?
+  productAnalysis        ProductAnalysis?
+  savedBy                SavedProduct[]
+  priceAlerts            PriceAlert[]
+}
+
+model ProductSpecification {
+  id              String   @id @default(uuid())
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category        String   // Display, Performance, Battery, Camera, Build, Connectivity, etc.
+  key             String   // e.g., "Processor", "RAM", "Battery Capacity"
+  value           String   // e.g., "Snapdragon 8 Gen 3"
+  unit            String?  // e.g., "mAh", "GB", "W"
+  isEstimated     Boolean  @default(false)
+  isUnavailable   Boolean  @default(false)
+  confidenceScore Int      @default(90)
+}
+
+model Seller {
+  id            String           @id @default(uuid())
+  name          String
+  rating        Float            @default(4.5)
+  trustScore    Int              @default(85)
+  returnPolicy  String?
+  warrantyInfo  String?
+  shippingInfo  String?
+  listings      ProductListing[]
+}
+
+model ProductListing {
+  id         String   @id @default(uuid())
+  productId  String
+  sellerId   String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  seller     Seller   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  listingUrl String?
+  price      Float
+  inStock    Boolean  @default(true)
+}
+
+model PriceHistory {
+  id         String   @id @default(uuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  price      Float
+  recordedAt DateTime @default(now())
+}
+
+model Review {
+  id               String   @id @default(uuid())
+  productId        String
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  author           String
+  rating           Float
+  title            String?
+  content          String
+  date             DateTime @default(now())
+  verifiedPurchase Boolean  @default(true)
+  flaggedAnomaly   Boolean  @default(false)
+}
+
+model ReviewAnalysis {
+  id                    String   @id @default(uuid())
+  productId             String   @unique
+  product               Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sentimentScore        Int      @default(80) // 0-100
+  positiveThemes        String   // JSON string array
+  negativeThemes        String   // JSON string array
+  commonComplaints      String   // JSON string array
+  commonPraise          String   // JSON string array
+  heatingComplaints     Int      @default(0)
+  batteryComplaints     Int      @default(0)
+  performanceComplaints Int      @default(0)
+  buildComplaints       Int      @default(0)
+  softwareComplaints    Int      @default(0)
+  anomalyScore          Int      @default(12) // percentage likelihood of bot reviews
+  anomalyExplanation    String?
+  summaryText           String?
+  updatedAt             DateTime @updatedAt
+}
+
+model ProductAnalysis {
+  id                     String   @id @default(uuid())
+  productId              String   @unique
+  product                Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  marketingClaims        String   // JSON string: [{claim, evidence, confidence, verdict}]
+  missingInformation     String   // JSON string: [{field, impact, whyImportant}]
+  hiddenCosts            String   // JSON string: [{item, estimatedCost, isRequired, note}]
+  totalEstimatedRealCost Float
+  regretReasons          String   // JSON string: [{reason, severity, mitigation}]
+  whoShouldNotBuy        String   // JSON string: [string]
+  productDna             String   // JSON string: {performance, value, durability, portability, innovation, repairability, risk, longTermValue}
+  marginalValueScore     Float    @default(7.5)
+  fakeDiscountAnalysis   String?  // JSON string: {isSuspicious, typicalPrice, explanation, confidence}
+  sameProductDuplicates  String?  // JSON string: [string]
+  contradictions         String?  // JSON string: [{field, claimA, claimB, confidence}]
+  updatedAt              DateTime @updatedAt
+}
+
+model Comparison {
+  id              String   @id @default(uuid())
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  productIds      String   // JSON string: [id1, id2, ...]
+  categoryWinners String   // JSON string: {performance: id, price: id, battery: id, ...}
+  overallWinnerId String?
+  winnerScore     Float    @default(85)
+  userWeights     String?  // JSON string of weights used
+  comparisonNotes String?
+  createdAt       DateTime @default(now())
+}
+
+model SavedProduct {
+  id        String   @id @default(uuid())
+  userId    String
+  productId String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+}
+
+model PriceAlert {
+  id           String   @id @default(uuid())
+  userId       String
+  productId    String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  targetPrice  Float
+  currentPrice Float
+  isActive     Boolean  @default(true)
+  isTriggered  Boolean  @default(false)
+  createdAt    DateTime @default(now())
+}
+
+model ChatSession {
+  id                String        @id @default(uuid())
+  userId            String?
+  user              User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title             String        @default("Product Inquiry")
+  contextProductId1 String?
+  contextProductId2 String?
+  createdAt         DateTime      @default(now())
+  messages          ChatMessage[]
+}
+
+model ChatMessage {
+  id         String      @id @default(uuid())
+  sessionId  String
+  session    ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role       String      // "user" or "assistant"
+  content    String
+  actionData String?     // JSON string for actions: {type: 'COMPARE'|'ALERT'|'SAVE', data: {}}
+  createdAt  DateTime    @default(now())
+}
+
+model UploadedDocument {
+  id            String   @id @default(uuid())
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  fileName      String
+  fileUrl       String
+  fileType      String   // "IMAGE", "SCREENSHOT", "PDF"
+  extractedData String?  // JSON string
+  createdAt     DateTime @default(now())
+}
